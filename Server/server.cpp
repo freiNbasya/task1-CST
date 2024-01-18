@@ -68,6 +68,10 @@ public:
                 std::string fileName = request.substr(4);
                 handleGetCommand(fileName);
             }
+            else if (request.substr(0, 3) == "PUT") {
+                std::string fileName = request.substr(4);
+                handlePutCommand(fileName);
+            }
             else if (request == "LIST") {
                 std::string fileList = listFiles(directoryPath);
                 std::cout << "Sending file list to client:\n" << fileList << std::endl;
@@ -129,7 +133,39 @@ private:
         }
     }
 
+    void handlePutCommand(const std::string& fileName) {
 
+        std::streamsize fileSize;
+        recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+        std::cout << "Received file size " << fileSize << " from server." << std::endl;
+        std::vector<char> buffer(fileSize);
+        std::streamsize totalBytesReceived = 0;
+        while (totalBytesReceived < fileSize) {
+            int bytesReceived = recv(clientSocket, buffer.data() + totalBytesReceived, static_cast<int>(fileSize - totalBytesReceived), 0);
+            if (bytesReceived > 0) {
+                totalBytesReceived += bytesReceived;
+            }
+            else if (bytesReceived == 0) {
+                std::cerr << "Connection closed by client." << std::endl;
+                break;
+            }
+            else {
+                std::cerr << "Error receiving file data from client." << std::endl;
+                break;
+            }
+        }
+
+
+        std::ofstream outFile(directoryPath + "\\" + fileName, std::ios::binary);
+        if (outFile.is_open()) {
+            outFile.write(buffer.data(), buffer.size());
+            outFile.close();
+            std::cout << "Received file " << fileName << " from client." << std::endl;
+        }
+        else {
+            std::cerr << "Unable to create file " << fileName << std::endl;
+        }
+    }
 
 
 };

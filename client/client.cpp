@@ -90,6 +90,34 @@ public:
             std::cerr << "Unable to create file " << fileName << std::endl;
         }
     }
+    
+    void sendFileToServer(const std::string& fileName) {
+        std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary | std::ios::ate);
+
+        if (file.is_open()) {
+            sendCommand("PUT " + fileName);
+            std::streamsize fileSize = file.tellg();
+            file.seekg(0, std::ios::beg);
+
+            send(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+            std::cout << "Sent file size " << fileSize << " to server." << std::endl;
+
+            std::vector<char> buffer(fileSize);
+            if (file.read(buffer.data(), fileSize)) {
+                
+                send(clientSocket, buffer.data(), static_cast<int>(fileSize), 0);
+                std::cout << "Sent file " << fileName << " to server." << std::endl;
+            }
+            else {
+                std::cerr << "Error reading file " << fileName << std::endl;
+            }
+            file.close();
+        }
+        else {
+            std::cerr << "Unable to open file " << fileName << std::endl;
+        }
+    }
+
 
     void quitProgram() {
         sendCommand("QUIT");
@@ -119,6 +147,12 @@ int main() {
             std::cout << "Enter file name: ";
             std::cin >> fileName;
             client.getFileFromServer(fileName);
+        }
+        else if (command == "PUT") {
+            std::string fileName;
+            std::cout << "Enter file name: ";
+            std::cin >> fileName;
+            client.sendFileToServer(fileName);
         }
         else if (command == "LIST") {
             std::cout << "Received file list from server:\n" << client.listFilesFromServer() << std::endl;
