@@ -54,6 +54,42 @@ public:
         }
         return "";
     }
+    void getFileFromServer(const std::string& fileName) {
+        sendCommand("GET " + fileName);
+
+
+        std::streamsize fileSize;
+        recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+        std::cout << "Received file size " << fileSize << " from server." << std::endl;
+
+   
+        std::vector<char> buffer(fileSize);
+        std::streamsize totalBytesReceived = 0;
+        while (totalBytesReceived < fileSize) {
+            int bytesReceived = recv(clientSocket, buffer.data() + totalBytesReceived, static_cast<int>(fileSize - totalBytesReceived), 0);
+            if (bytesReceived > 0) {
+                totalBytesReceived += bytesReceived;
+            }
+            else if (bytesReceived == 0) {
+                std::cerr << "Connection closed by server." << std::endl;
+                break;
+            }
+            else {
+                std::cerr << "Error receiving file data from server." << std::endl;
+                break;
+            }
+        }
+
+        std::ofstream outFile(directoryPath + "\\" + fileName, std::ios::binary);
+        if (outFile.is_open()) {
+            outFile.write(buffer.data(), buffer.size());
+            outFile.close();
+            std::cout << "Received file " << fileName << " from server." << std::endl;
+        }
+        else {
+            std::cerr << "Unable to create file " << fileName << std::endl;
+        }
+    }
 
     void quitProgram() {
         sendCommand("QUIT");
@@ -78,7 +114,13 @@ int main() {
         Client client(serverIp, port);
         std::cout << "Enter command: ";
         std::cin >> command;
-        if (command == "LIST") {
+        if (command == "GET") {
+            std::string fileName;
+            std::cout << "Enter file name: ";
+            std::cin >> fileName;
+            client.getFileFromServer(fileName);
+        }
+        else if (command == "LIST") {
             std::cout << "Received file list from server:\n" << client.listFilesFromServer() << std::endl;
         }
         else if (command == "QUIT") {

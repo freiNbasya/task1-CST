@@ -64,7 +64,11 @@ public:
         int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
             std::string request = buffer;
-            if (request == "LIST") {
+            if (request.substr(0, 3) == "GET") {
+                std::string fileName = request.substr(4);
+                handleGetCommand(fileName);
+            }
+            else if (request == "LIST") {
                 std::string fileList = listFiles(directoryPath);
                 std::cout << "Sending file list to client:\n" << fileList << std::endl;
                 send(clientSocket, fileList.c_str(), static_cast<int>(fileList.length()), 0);
@@ -99,7 +103,33 @@ private:
         return fileList;
     }
 
-    
+    void handleGetCommand(const std::string& fileName) {
+        std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary | std::ios::ate);
+        if (file.is_open()) {
+
+            std::streamsize fileSize = file.tellg();
+            file.seekg(0, std::ios::beg);
+
+
+            send(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+            std::cout << "Sent file size " << fileSize << " to client." << std::endl;
+
+            std::vector<char> buffer(fileSize);
+            if (file.read(buffer.data(), fileSize)) {
+                send(clientSocket, buffer.data(), static_cast<int>(fileSize), 0);
+                std::cout << "Sent file " << fileName << " to client." << std::endl;
+            }
+            else {
+                std::cerr << "Error reading file " << fileName << std::endl;
+            }
+            file.close();
+        }
+        else {
+            std::cerr << "Unable to open file " << fileName << std::endl;
+        }
+    }
+
+
 
 
 };
