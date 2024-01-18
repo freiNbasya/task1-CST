@@ -117,7 +117,34 @@ public:
             std::cerr << "Unable to open file " << fileName << std::endl;
         }
     }
+    void deleteFileFromServer(const std::string& fileName) {
+        sendCommand("DELETE " + fileName);
 
+
+        char buffer[1024];
+        memset(buffer, 0, 1024);
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesReceived > 0) {
+            std::cout << "Server response: " << std::string(buffer, bytesReceived) << std::endl;
+        }
+        else {
+            std::cerr << "Error receiving server response." << std::endl;
+        }
+    }
+    void getFileInfoFromServer(const std::string& fileName) {
+
+        sendCommand("INFO " + fileName);
+
+        char buffer[1024];
+        memset(buffer, 0, 1024);
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesReceived > 0) {
+            std::cout << "Server response:\n" << std::string(buffer, bytesReceived) << std::endl;
+        }
+        else {
+            std::cerr << "Error receiving server response." << std::endl;
+        }
+    }
 
     void quitProgram() {
         sendCommand("QUIT");
@@ -153,6 +180,18 @@ int main() {
             std::cout << "Enter file name: ";
             std::cin >> fileName;
             client.sendFileToServer(fileName);
+        }
+        else if (command == "DELETE") {
+            std::string fileName;
+            std::cout << "Enter file name to delete: ";
+            std::cin >> fileName;
+            client.deleteFileFromServer(fileName);
+        }
+        else if (command == "INFO") {
+            std::string fileName;
+            std::cout << "Enter file name to get info: ";
+            std::cin >> fileName;
+            client.getFileInfoFromServer(fileName);
         }
         else if (command == "LIST") {
             std::cout << "Received file list from server:\n" << client.listFilesFromServer() << std::endl;

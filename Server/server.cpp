@@ -76,6 +76,12 @@ public:
                 std::string fileList = listFiles(directoryPath);
                 std::cout << "Sending file list to client:\n" << fileList << std::endl;
                 send(clientSocket, fileList.c_str(), static_cast<int>(fileList.length()), 0);
+            }else if (request.substr(0, 6) == "DELETE") {
+                std::string fileName = request.substr(7);
+                handleDeleteCommand(fileName);
+            }else if (request.substr(0, 4) == "INFO") {
+                std::string fileName = request.substr(5);
+                handleInfoCommand(fileName);
             }
             else if (request == "QUIT") {
                 loop = false;
@@ -164,6 +170,31 @@ private:
         }
         else {
             std::cerr << "Unable to create file " << fileName << std::endl;
+        }
+    }
+    void handleDeleteCommand(const std::string& fileName) {
+        std::string filePath = directoryPath + "\\" + fileName;
+        if (std::filesystem::remove(filePath)) {
+            std::cout << "Deleted file " << fileName << " from server." << std::endl;
+            
+        }
+        else {
+            std::cerr << "Unable to delete file " << fileName << " from server." << std::endl;
+            
+        }
+    }
+    void handleInfoCommand(const std::string& fileName) {
+        std::string filePath = directoryPath + "\\" + fileName;
+        std::filesystem::path file(filePath);
+        if (std::filesystem::exists(file)) {
+
+            std::string info = "File size: " + std::to_string(std::filesystem::file_size(file)) + " bytes\n";
+            send(clientSocket, info.c_str(), static_cast<int>(info.length()), 0);
+            std::cout << "Sent file info for " << fileName << " to client." << std::endl;
+        }
+        else {
+            std::cerr << "File " << fileName << " does not exist." << std::endl;
+            
         }
     }
 
