@@ -58,7 +58,24 @@ public:
         }
     }
 
+    void handleClientRequest() {
+        char buffer[1024];
+        memset(buffer, 0, 1024);
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesReceived > 0) {
+            std::string request = buffer;
+            if (request == "LIST") {
+                std::string fileList = listFiles(directoryPath);
+                std::cout << "Sending file list to client:\n" << fileList << std::endl;
+                send(clientSocket, fileList.c_str(), static_cast<int>(fileList.length()), 0);
+            }
+            else if (request == "QUIT") {
+                loop = false;
+            }
 
+            
+        }
+    }
 
     bool getLoop() {
         return loop;
@@ -74,6 +91,15 @@ private:
     bool loop = true;
     int port;
 
+    std::string listFiles(const std::string& directoryPath) {
+        std::string fileList;
+        for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+            fileList += entry.path().filename().string() + "\n";
+        }
+        return fileList;
+    }
+
+    
 
 
 };

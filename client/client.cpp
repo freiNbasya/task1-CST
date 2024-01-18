@@ -44,7 +44,16 @@ public:
         send(clientSocket, command.c_str(), static_cast<int>(command.length()), 0);
     }
 
-
+    std::string listFilesFromServer() {
+        sendCommand("LIST");
+        char buffer[1024];
+        memset(buffer, 0, 1024);
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesReceived > 0) {
+            return std::string(buffer);
+        }
+        return "";
+    }
 
     void quitProgram() {
         sendCommand("QUIT");
@@ -69,7 +78,10 @@ int main() {
         Client client(serverIp, port);
         std::cout << "Enter command: ";
         std::cin >> command;
-        if (command == "QUIT") {
+        if (command == "LIST") {
+            std::cout << "Received file list from server:\n" << client.listFilesFromServer() << std::endl;
+        }
+        else if (command == "QUIT") {
             client.quitProgram();
             break;
         }
