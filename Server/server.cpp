@@ -58,7 +58,7 @@ public:
         }
     }
 
-    void handleClientRequest() {
+    void receiveCommand() {
         char buffer[1024];
         memset(buffer, 0, 1024);
         int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
@@ -66,22 +66,22 @@ public:
             std::string request = buffer;
             if (request.substr(0, 3) == "GET") {
                 std::string fileName = request.substr(4);
-                handleGetCommand(fileName);
+                GET(fileName);
             }
             else if (request.substr(0, 3) == "PUT") {
                 std::string fileName = request.substr(4);
-                handlePutCommand(fileName);
+                PUT(fileName);
             }
             else if (request == "LIST") {
-                std::string fileList = listFiles(directoryPath);
+                std::string fileList = LIST(directoryPath);
                 std::cout << "Sending file list to client:\n" << fileList << std::endl;
                 send(clientSocket, fileList.c_str(), static_cast<int>(fileList.length()), 0);
             }else if (request.substr(0, 6) == "DELETE") {
                 std::string fileName = request.substr(7);
-                handleDeleteCommand(fileName);
+                DEL(fileName);
             }else if (request.substr(0, 4) == "INFO") {
                 std::string fileName = request.substr(5);
-                handleInfoCommand(fileName);
+                INFO(fileName);
             }
             else if (request == "QUIT") {
                 loop = false;
@@ -105,7 +105,7 @@ private:
     bool loop = true;
     int port;
 
-    std::string listFiles(const std::string& directoryPath) {
+    std::string LIST(const std::string& directoryPath) {
         std::string fileList;
         for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
             fileList += entry.path().filename().string() + "\n";
@@ -113,17 +113,13 @@ private:
         return fileList;
     }
 
-    void handleGetCommand(const std::string& fileName) {
+    void GET(const std::string& fileName) {
         std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary | std::ios::ate);
         if (file.is_open()) {
-
             std::streamsize fileSize = file.tellg();
             file.seekg(0, std::ios::beg);
-
-
             send(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
             std::cout << "Sent file size " << fileSize << " to client." << std::endl;
-
             std::vector<char> buffer(fileSize);
             if (file.read(buffer.data(), fileSize)) {
                 send(clientSocket, buffer.data(), static_cast<int>(fileSize), 0);
@@ -139,7 +135,7 @@ private:
         }
     }
 
-    void handlePutCommand(const std::string& fileName) {
+    void PUT(const std::string& fileName) {
 
         std::streamsize fileSize;
         recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
@@ -160,8 +156,6 @@ private:
                 break;
             }
         }
-
-
         std::ofstream outFile(directoryPath + "\\" + fileName, std::ios::binary);
         if (outFile.is_open()) {
             outFile.write(buffer.data(), buffer.size());
@@ -172,9 +166,11 @@ private:
             std::cerr << "Unable to create file " << fileName << std::endl;
         }
     }
-    void handleDeleteCommand(const std::string& fileName) {
+    void DEL(const std::string& fileName) {
         std::string filePath = directoryPath + "\\" + fileName;
         if (std::filesystem::remove(filePath)) {
+            std::string response = "File " + fileName + " deleted successfully\n";
+            send(clientSocket, response.c_str(), static_cast<int>(response.length()), 0);
             std::cout << "Deleted file " << fileName << " from server." << std::endl;
             
         }
@@ -183,7 +179,7 @@ private:
             
         }
     }
-    void handleInfoCommand(const std::string& fileName) {
+    void INFO(const std::string& fileName) {
         std::string filePath = directoryPath + "\\" + fileName;
         std::filesystem::path file(filePath);
         if (std::filesystem::exists(file)) {
@@ -207,7 +203,7 @@ int main() {
         int port = 12345;
         Server server(port);
         server.acceptClient();
-        server.handleClientRequest();
+        server.receiveCommand();
         if (server.getLoop() == false) {
             break;
         }
