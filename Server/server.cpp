@@ -86,8 +86,6 @@ public:
             else if (request == "QUIT") {
                 loop = false;
             }
-
-            
         }
     }
 
@@ -100,7 +98,6 @@ private:
     SOCKET serverSocket;
     SOCKET clientSocket;
     sockaddr_in serverAddr;
-
     std::string directoryPath = "C:\\Labs_Kse\\CST\\task1\\Server\\assets";
     bool loop = true;
     int port;
@@ -125,18 +122,11 @@ private:
                 send(clientSocket, buffer.data(), static_cast<int>(fileSize), 0);
                 std::cout << "Sent file " << fileName << " to client." << std::endl;
             }
-            else {
-                std::cerr << "Error reading file " << fileName << std::endl;
-            }
             file.close();
-        }
-        else {
-            std::cerr << "Unable to open file " << fileName << std::endl;
         }
     }
 
     void PUT(const std::string& fileName) {
-
         std::streamsize fileSize;
         recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
         std::cout << "Received file size " << fileSize << " from server." << std::endl;
@@ -147,14 +137,6 @@ private:
             if (bytesReceived > 0) {
                 totalBytesReceived += bytesReceived;
             }
-            else if (bytesReceived == 0) {
-                std::cerr << "Connection closed by client." << std::endl;
-                break;
-            }
-            else {
-                std::cerr << "Error receiving file data from client." << std::endl;
-                break;
-            }
         }
         std::ofstream outFile(directoryPath + "\\" + fileName, std::ios::binary);
         if (outFile.is_open()) {
@@ -162,10 +144,8 @@ private:
             outFile.close();
             std::cout << "Received file " << fileName << " from client." << std::endl;
         }
-        else {
-            std::cerr << "Unable to create file " << fileName << std::endl;
-        }
     }
+
     void DEL(const std::string& fileName) {
         std::string filePath = directoryPath + "\\" + fileName;
         if (std::filesystem::remove(filePath)) {
@@ -174,31 +154,20 @@ private:
             std::cout << "Deleted file " << fileName << " from server." << std::endl;
             
         }
-        else {
-            std::cerr << "Unable to delete file " << fileName << " from server." << std::endl;
-            
-        }
     }
+
     void INFO(const std::string& fileName) {
         std::string filePath = directoryPath + "\\" + fileName;
         std::filesystem::path file(filePath);
         if (std::filesystem::exists(file)) {
-
             std::string info = "File size: " + std::to_string(std::filesystem::file_size(file)) + " bytes\n";
             send(clientSocket, info.c_str(), static_cast<int>(info.length()), 0);
             std::cout << "Sent file info for " << fileName << " to client." << std::endl;
         }
-        else {
-            std::cerr << "File " << fileName << " does not exist." << std::endl;
-            
-        }
     }
-
-
 };
 
 int main() {
-
     while (true) {
         int port = 12345;
         Server server(port);
