@@ -50,6 +50,10 @@ public:
         send(clientSocket, command.c_str(), static_cast<int>(command.length()), 0);
     }
 
+    void createFolderOnServer(const std::string& folderName) {
+        sendCommand("CREATE " + folderName);
+    }
+
     std::string listFilesFromServer() {
         sendCommand("LIST");
         char buffer[1024];
@@ -137,9 +141,10 @@ private:
 
 int main() {
     std::string command;
-    
-        int port = 12345;
-        Client client(port);
+
+    int port = 12345;
+    Client client(port);
+    while (true) {
         std::cout << "Enter command: ";
         std::cin >> command;
         if (command == "GET") {
@@ -169,10 +174,17 @@ int main() {
         else if (command == "LIST") {
             std::cout << "Received file list from server:\n" << client.listFilesFromServer() << std::endl;
         }
+        else if (command == "CREATE") {
+            std::string folderName;
+            std::cout << "Enter folder name to create: ";
+            std::cin >> folderName;
+            client.createFolderOnServer(folderName);
+        }
         else if (command == "QUIT") {
             client.quitProgram();
-            
+
         }
-    
+    }
+
     return 0;
 }

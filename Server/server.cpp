@@ -84,13 +84,16 @@ public:
                 if (request.substr(0, 3) == "GET") {
                     std::string fileName = request.substr(4);
                     GET(fileName, client);
+                }else if (request.substr(0, 7) == "CREATE ") {
+                    std::string folderName = request.substr(7);
+                    CREATE(folderName);
                 }
                 else if (request.substr(0, 3) == "PUT") {
                     std::string fileName = request.substr(4);
                     PUT(fileName, client);
                 }
                 else if (request == "LIST") {
-                    std::string fileList = LIST(directoryPath);
+                    std::string fileList = LIST(clientPath);
                     std::cout << "Sending file list to client:\n" << fileList << std::endl;
                     send(client, fileList.c_str(), static_cast<int>(fileList.length()), 0);
                 }
@@ -121,9 +124,17 @@ private:
     sockaddr_in serverAddr;
     std::mutex clientSocketMutex;
     std::vector<std::thread> clientThreads;
-    std::string directoryPath = "C:\\Labs_Kse\\CST\\task1\\Server\\assets";
+    std::string clientPath;
     bool loop = true;
     int port;
+   
+    void CREATE(const std::string& folderName) {
+        clientPath = "C:\\Labs_Kse\\CST\\task1\\Server\\"  + folderName;
+        if (!std::filesystem::exists(clientPath)) {
+            std::filesystem::create_directory(clientPath);
+            std::cout << "Created folder '" << folderName << "'." << std::endl;
+        }
+    }
 
     std::string LIST(const std::string& directoryPath) {
         std::string fileList;
@@ -134,9 +145,9 @@ private:
     }
 
     void GET(const std::string& fileName, const int client) {
-        std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary);
+        std::ifstream file(clientPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
-            std::streamsize fileSize = std::filesystem::file_size(directoryPath + "\\" + fileName);
+            std::streamsize fileSize = std::filesystem::file_size(clientPath + "\\" + fileName);
             send(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
             std::cout << "Sent file size " << fileSize << " to client." << std::endl;
 
@@ -152,7 +163,7 @@ private:
     }
 
     void PUT(const std::string& fileName, const int client) {
-        std::ofstream file(directoryPath + "\\" + fileName, std::ios::binary);
+        std::ofstream file(clientPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
             std::streamsize fileSize;
             recv(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
@@ -174,7 +185,7 @@ private:
     }
 
     void DEL(const std::string& fileName, const int client) {
-        std::string filePath = directoryPath + "\\" + fileName;
+        std::string filePath = clientPath + "\\" + fileName;
         if (std::filesystem::remove(filePath)) {
             std::string response = "File " + fileName + " deleted successfully\n";
             send(client, response.c_str(), static_cast<int>(response.length()), 0);
@@ -184,7 +195,7 @@ private:
     }
 
     void INFO(const std::string& fileName, const int client) {
-        std::string filePath = directoryPath + "\\" + fileName;
+        std::string filePath = clientPath + "\\" + fileName;
         std::filesystem::path file(filePath);
         if (std::filesystem::exists(file)) {
             std::string info = "File size: " + std::to_string(std::filesystem::file_size(file)) + " bytes\n";
