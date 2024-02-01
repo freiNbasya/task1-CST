@@ -33,6 +33,12 @@ public:
             WSACleanup();
             exit(1);
         }
+        std::string assetsFolderPath = "assets";
+        if (!std::filesystem::exists(assetsFolderPath)) {
+            std::filesystem::create_directory(assetsFolderPath);
+            std::cout << "Created 'assets' folder." << std::endl;
+        }
+        directoryPath = std::filesystem::absolute(assetsFolderPath).string();
     }
 
     ~Client() {
@@ -60,39 +66,41 @@ public:
         std::streamsize fileSize;
         recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
         std::cout << "Received file size " << fileSize << " from server." << std::endl;
-        std::vector<char> buffer(fileSize);
+
+        const int chunkSize = 1024;
+        char buffer[chunkSize];
+        std::ofstream file(directoryPath + "\\" + fileName, std::ios::binary);
         std::streamsize totalBytesReceived = 0;
         while (totalBytesReceived < fileSize) {
-            int bytesReceived = recv(clientSocket, buffer.data() + totalBytesReceived, static_cast<int>(fileSize - totalBytesReceived), 0);
+            int bytesReceived = recv(clientSocket, buffer, chunkSize, 0);
             if (bytesReceived > 0) {
+                file.write(buffer, bytesReceived);
                 totalBytesReceived += bytesReceived;
             }
         }
-        std::ofstream file(directoryPath + "\\" + fileName, std::ios::binary);
-        if (file.is_open()) {
-            file.write(buffer.data(), buffer.size());
-            file.close();
-            std::cout << "Received file " << fileName << " from server." << std::endl;
-        }
+        file.close();
+        std::cout << "Received file " << fileName << " from server." << std::endl;
     }
-    
+
     void sendFileToServer(const std::string& fileName) {
-        std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary | std::ios::ate);
+        std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
             sendCommand("PUT " + fileName);
-            std::streamsize fileSize = file.tellg();
-            file.seekg(0, std::ios::beg);
+            std::streamsize fileSize = std::filesystem::file_size(directoryPath + "\\" + fileName);
             send(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
             std::cout << "Sent file size " << fileSize << " to server." << std::endl;
-            std::vector<char> buffer(fileSize);
-            if (file.read(buffer.data(), fileSize)) {
-                
-                send(clientSocket, buffer.data(), static_cast<int>(fileSize), 0);
-                std::cout << "Sent file " << fileName << " to server." << std::endl;
+
+            const int chunkSize = 1024;
+            char buffer[chunkSize];
+            while (!file.eof()) {
+                file.read(buffer, chunkSize);
+                send(clientSocket, buffer, static_cast<int>(file.gcount()), 0);
             }
             file.close();
+            std::cout << "Sent file " << fileName << " to server." << std::endl;
         }
     }
+
 
     void deleteFileFromServer(const std::string& fileName) {
         sendCommand("DELETE " + fileName);
@@ -119,7 +127,7 @@ public:
     }
 
 private:
-    std::string directoryPath = "C:\\Labs_Kse\\CST\\task1\\client\\assets";
+    std::string directoryPath;
     WSADATA wsaData;
     SOCKET clientSocket;
     sockaddr_in serverAddr;
@@ -129,7 +137,7 @@ private:
 
 int main() {
     std::string command;
-    while (true) {
+    
         int port = 12345;
         Client client(port);
         std::cout << "Enter command: ";
@@ -163,8 +171,8 @@ int main() {
         }
         else if (command == "QUIT") {
             client.quitProgram();
-            break;
+            
         }
-    }
+    
     return 0;
 }

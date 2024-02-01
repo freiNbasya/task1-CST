@@ -5,6 +5,8 @@
 #include <fstream>
 #include <ctime>
 #include <string>
+#include <mutex>
+#include <thread>
 #pragma comment(lib, "ws2_32.lib")
 
 class Server {
@@ -47,7 +49,7 @@ public:
         WSACleanup();   
     }
 
-    void acceptClient() {
+    int acceptClient() {
         // Accept a client connection
         clientSocket = accept(serverSocket, nullptr, nullptr);
         if (clientSocket == INVALID_SOCKET) {
@@ -56,37 +58,61 @@ public:
             WSACleanup();
             exit(1);
         }
+        return clientSocket;
     }
 
-    void receiveCommand() {
-        char buffer[1024];
-        memset(buffer, 0, 1024);
-        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-        if (bytesReceived > 0) {
-            std::string request = buffer;
-            if (request.substr(0, 3) == "GET") {
-                std::string fileName = request.substr(4);
-                GET(fileName);
+    void startListening() {
+        while (true) {
+           int client = acceptClient();
+            if (client != 1)
+            {
+                
+
+                clientThreads.emplace_back([this, client]() { handleClient(client); });
             }
-            else if (request.substr(0, 3) == "PUT") {
-                std::string fileName = request.substr(4);
-                PUT(fileName);
-            }
-            else if (request == "LIST") {
-                std::string fileList = LIST(directoryPath);
-                std::cout << "Sending file list to client:\n" << fileList << std::endl;
-                send(clientSocket, fileList.c_str(), static_cast<int>(fileList.length()), 0);
-            }else if (request.substr(0, 6) == "DELETE") {
-                std::string fileName = request.substr(7);
-                DEL(fileName);
-            }else if (request.substr(0, 4) == "INFO") {
-                std::string fileName = request.substr(5);
-                INFO(fileName);
-            }
-            else if (request == "QUIT") {
-                loop = false;
+
+        }
+        for (auto& thread : clientThreads) {
+            thread.join();
+        }
+    }
+
+
+    void handleClient(const int client) {
+        while (true) {
+            char buffer[1024];
+            memset(buffer, 0, 1024);
+            int bytesReceived = recv(client, buffer, sizeof(buffer), 0);
+            if (bytesReceived > 0) {
+                
+                std::string request = buffer;
+                if (request.substr(0, 3) == "GET") {
+                    std::string fileName = request.substr(4);
+                    GET(fileName, client);
+                }
+                else if (request.substr(0, 3) == "PUT") {
+                    std::string fileName = request.substr(4);
+                    PUT(fileName, client);
+                }
+                else if (request == "LIST") {
+                    std::string fileList = LIST(directoryPath);
+                    std::cout << "Sending file list to client:\n" << fileList << std::endl;
+                    send(client, fileList.c_str(), static_cast<int>(fileList.length()), 0);
+                }
+                else if (request.substr(0, 6) == "DELETE") {
+                    std::string fileName = request.substr(7);
+                    DEL(fileName, client);
+                }
+                else if (request.substr(0, 4) == "INFO") {
+                    std::string fileName = request.substr(5);
+                    INFO(fileName, client);
+                }
+                else if (request == "QUIT") {
+                    break;
+                }
             }
         }
+        closesocket(client);
     }
 
     bool getLoop() {
@@ -98,6 +124,8 @@ private:
     SOCKET serverSocket;
     SOCKET clientSocket;
     sockaddr_in serverAddr;
+    std::mutex clientSocketMutex;
+    std::vector<std::thread> clientThreads;
     std::string directoryPath = "C:\\Labs_Kse\\CST\\task1\\Server\\assets";
     bool loop = true;
     int port;
@@ -110,72 +138,73 @@ private:
         return fileList;
     }
 
-    void GET(const std::string& fileName) {
-        std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary | std::ios::ate);
+    void GET(const std::string& fileName, const int client) {
+        std::ifstream file(directoryPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
-            std::streamsize fileSize = file.tellg();
-            file.seekg(0, std::ios::beg);
-            send(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+            std::streamsize fileSize = std::filesystem::file_size(directoryPath + "\\" + fileName);
+            send(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
             std::cout << "Sent file size " << fileSize << " to client." << std::endl;
-            std::vector<char> buffer(fileSize);
-            if (file.read(buffer.data(), fileSize)) {
-                send(clientSocket, buffer.data(), static_cast<int>(fileSize), 0);
-                std::cout << "Sent file " << fileName << " to client." << std::endl;
+
+            const int chunkSize = 1024;
+            char buffer[chunkSize];
+            while (!file.eof()) {
+                file.read(buffer, chunkSize);
+                send(client, buffer, static_cast<int>(file.gcount()), 0);
             }
             file.close();
+            std::cout << "Sent file " << fileName << " to client." << std::endl;
         }
     }
 
-    void PUT(const std::string& fileName) {
-        std::streamsize fileSize;
-        recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
-        std::cout << "Received file size " << fileSize << " from server." << std::endl;
-        std::vector<char> buffer(fileSize);
-        std::streamsize totalBytesReceived = 0;
-        while (totalBytesReceived < fileSize) {
-            int bytesReceived = recv(clientSocket, buffer.data() + totalBytesReceived, static_cast<int>(fileSize - totalBytesReceived), 0);
-            if (bytesReceived > 0) {
-                totalBytesReceived += bytesReceived;
+    void PUT(const std::string& fileName, const int client) {
+        std::ofstream file(directoryPath + "\\" + fileName, std::ios::binary);
+        if (file.is_open()) {
+            std::streamsize fileSize;
+            recv(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+            std::cout << "Received file size " << fileSize << " from client." << std::endl;
+
+            const int chunkSize = 1024;
+            char buffer[chunkSize];
+            std::streamsize totalBytesReceived = 0;
+            while (totalBytesReceived < fileSize) {
+                int bytesReceived = recv(client, buffer, chunkSize, 0);
+                if (bytesReceived > 0) {
+                    file.write(buffer, bytesReceived);
+                    totalBytesReceived += bytesReceived;
+                }
             }
-        }
-        std::ofstream outFile(directoryPath + "\\" + fileName, std::ios::binary);
-        if (outFile.is_open()) {
-            outFile.write(buffer.data(), buffer.size());
-            outFile.close();
+            file.close();
             std::cout << "Received file " << fileName << " from client." << std::endl;
         }
     }
 
-    void DEL(const std::string& fileName) {
+    void DEL(const std::string& fileName, const int client) {
         std::string filePath = directoryPath + "\\" + fileName;
         if (std::filesystem::remove(filePath)) {
             std::string response = "File " + fileName + " deleted successfully\n";
-            send(clientSocket, response.c_str(), static_cast<int>(response.length()), 0);
+            send(client, response.c_str(), static_cast<int>(response.length()), 0);
             std::cout << "Deleted file " << fileName << " from server." << std::endl;
             
         }
     }
 
-    void INFO(const std::string& fileName) {
+    void INFO(const std::string& fileName, const int client) {
         std::string filePath = directoryPath + "\\" + fileName;
         std::filesystem::path file(filePath);
         if (std::filesystem::exists(file)) {
             std::string info = "File size: " + std::to_string(std::filesystem::file_size(file)) + " bytes\n";
-            send(clientSocket, info.c_str(), static_cast<int>(info.length()), 0);
+            send(client, info.c_str(), static_cast<int>(info.length()), 0);
             std::cout << "Sent file info for " << fileName << " to client." << std::endl;
         }
     }
 };
 
 int main() {
-    while (true) {
+    
         int port = 12345;
         Server server(port);
-        server.acceptClient();
-        server.receiveCommand();
-        if (server.getLoop() == false) {
-            break;
-        }
-    }
+        server.startListening();
+        
+   
     return 0;
 }
