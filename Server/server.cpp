@@ -70,10 +70,10 @@ private:
 
 class ServerCommands {
 public:
-    void startListening() {
+    void manageClients() {
         while (true) {
            int client = server.acceptClient();
-                clientThreads.emplace_back([this, client]() { handleClient(client); });
+                clientThreads.emplace_back([this, client]() { handleClient(client);});
 
         }
         for (auto& thread : clientThreads) {
@@ -214,7 +214,7 @@ int main() {
     
         int port = 12345;
         ServerCommands serverCommands;
-        serverCommands.startListening();
+        serverCommands.manageClients();
         
    
     return 0;
