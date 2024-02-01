@@ -64,12 +64,7 @@ public:
     void startListening() {
         while (true) {
            int client = acceptClient();
-            if (client != 1)
-            {
-                
-
                 clientThreads.emplace_back([this, client]() { handleClient(client); });
-            }
 
         }
         for (auto& thread : clientThreads) {
