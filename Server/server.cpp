@@ -9,9 +9,10 @@
 #include <thread>
 #pragma comment(lib, "ws2_32.lib")
 
-class Server {
+
+class Server{
 public:
-    Server(int port) : port(port) {
+    Server() {
         // Initialize Winsock
         if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
             std::cerr << "WSAStartup failed" << std::endl;
@@ -43,12 +44,6 @@ public:
         }
         std::cout << "Server listening on port " << port << std::endl;
     }
-
-    ~Server() {
-        closesocket(serverSocket);
-        WSACleanup();   
-    }
-
     int acceptClient() {
         // Accept a client connection
         clientSocket = accept(serverSocket, nullptr, nullptr);
@@ -60,10 +55,24 @@ public:
         }
         return clientSocket;
     }
+    ~Server() {
+        closesocket(serverSocket);
+        WSACleanup();
+    }
 
+private:
+    WSADATA wsaData;
+    SOCKET serverSocket;
+    SOCKET clientSocket;
+    sockaddr_in serverAddr;
+    int port = 12345;
+};
+
+class ServerCommands {
+public:
     void startListening() {
         while (true) {
-           int client = acceptClient();
+           int client = server.acceptClient();
                 clientThreads.emplace_back([this, client]() { handleClient(client); });
 
         }
@@ -118,15 +127,11 @@ public:
     }
 
 private:
-    WSADATA wsaData;
-    SOCKET serverSocket;
-    SOCKET clientSocket;
-    sockaddr_in serverAddr;
-    std::mutex clientSocketMutex;
+
     std::vector<std::thread> clientThreads;
     std::string clientPath;
     bool loop = true;
-    int port;
+    Server server;
    
     void CREATE(const std::string& folderName) {
         clientPath = "C:\\Labs_Kse\\CST\\task1\\Server\\"  + folderName;
@@ -208,8 +213,8 @@ private:
 int main() {
     
         int port = 12345;
-        Server server(port);
-        server.startListening();
+        ServerCommands serverCommands;
+        serverCommands.startListening();
         
    
     return 0;
