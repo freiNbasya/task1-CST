@@ -148,7 +148,6 @@ private:
 
 int main() {
     std::string command;
-
     ClientCommands client;
     while (true) {
         std::cout << "Enter command: ";

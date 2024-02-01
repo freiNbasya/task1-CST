@@ -83,6 +83,7 @@ public:
 
 
     void handleClient(const int client) {
+        std::string clientPath;
         while (true) {
             char buffer[1024];
             memset(buffer, 0, 1024);
@@ -92,14 +93,14 @@ public:
                 std::string request = buffer;
                 if (request.substr(0, 3) == "GET") {
                     std::string fileName = request.substr(4);
-                    GET(fileName, client);
+                    GET(fileName, client, clientPath);
                 }else if (request.substr(0, 7) == "CREATE ") {
                     std::string folderName = request.substr(7);
-                    CREATE(folderName);
+                    CREATE(folderName, clientPath);
                 }
                 else if (request.substr(0, 3) == "PUT") {
                     std::string fileName = request.substr(4);
-                    PUT(fileName, client);
+                    PUT(fileName, client, clientPath);
                 }
                 else if (request == "LIST") {
                     std::string fileList = LIST(clientPath);
@@ -108,11 +109,11 @@ public:
                 }
                 else if (request.substr(0, 6) == "DELETE") {
                     std::string fileName = request.substr(7);
-                    DEL(fileName, client);
+                    DEL(fileName, client, clientPath);
                 }
                 else if (request.substr(0, 4) == "INFO") {
                     std::string fileName = request.substr(5);
-                    INFO(fileName, client);
+                    INFO(fileName, client, clientPath);
                 }
                 else if (request == "QUIT") {
                     break;
@@ -129,11 +130,10 @@ public:
 private:
 
     std::vector<std::thread> clientThreads;
-    std::string clientPath;
     bool loop = true;
     Server server;
    
-    void CREATE(const std::string& folderName) {
+    void CREATE(const std::string& folderName, std::string& clientPath) {
         clientPath = "C:\\Labs_Kse\\CST\\task1\\Server\\"  + folderName;
         if (!std::filesystem::exists(clientPath)) {
             std::filesystem::create_directory(clientPath);
@@ -149,7 +149,7 @@ private:
         return fileList;
     }
 
-    void GET(const std::string& fileName, const int client) {
+    void GET(const std::string& fileName, const int client, std::string& clientPath) {
         std::ifstream file(clientPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
             std::streamsize fileSize = std::filesystem::file_size(clientPath + "\\" + fileName);
@@ -167,7 +167,7 @@ private:
         }
     }
 
-    void PUT(const std::string& fileName, const int client) {
+    void PUT(const std::string& fileName, const int client, std::string& clientPath) {
         std::ofstream file(clientPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
             std::streamsize fileSize;
@@ -189,7 +189,7 @@ private:
         }
     }
 
-    void DEL(const std::string& fileName, const int client) {
+    void DEL(const std::string& fileName, const int client, std::string& clientPath) {
         std::string filePath = clientPath + "\\" + fileName;
         if (std::filesystem::remove(filePath)) {
             std::string response = "File " + fileName + " deleted successfully\n";
@@ -199,7 +199,7 @@ private:
         }
     }
 
-    void INFO(const std::string& fileName, const int client) {
+    void INFO(const std::string& fileName, const int client, std::string& clientPath) {
         std::string filePath = clientPath + "\\" + fileName;
         std::filesystem::path file(filePath);
         if (std::filesystem::exists(file)) {
