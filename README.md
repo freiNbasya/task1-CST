@@ -28,6 +28,10 @@ INFO command:
 -	Server receives the string, parses it to separate file name, find the correct file, calculates it’s size, sends the string with information to the client.
 -	Client receives information about desired file.
 
+CREATE command:
+-	Client sends command that consists of both string “CREATE” + name of desirable folder name to the server in the same string”.
+-	Server receives the string, parses it to separate folder name, checks if such folder exists, if it doesn't creates one and assigns this folder as this particular client subfolder
+
 QUIT command:
 -  	Client sends string “QUIT” to the server, after which it breaks it’s while (true) loop and shuts down.
 -	Server receives command and breaks it’s while (true) loop and shuts down.
