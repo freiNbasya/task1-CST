@@ -4,8 +4,8 @@
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
 #include <vector>
+#include "Header.h"
 #include <string>
-
 #pragma comment(lib, "ws2_32.lib")
 
 class Client {
@@ -35,7 +35,6 @@ public:
             WSACleanup();
             exit(1);
         }
-
         std::string assetsFolderPath = "assets";
         if (!std::filesystem::exists(assetsFolderPath)) {
             std::filesystem::create_directory(assetsFolderPath);
@@ -48,6 +47,7 @@ public:
         closesocket(clientSocket);
         WSACleanup();
     }
+
 private:
     WSADATA wsaData;
     sockaddr_in serverAddr;
@@ -104,7 +104,6 @@ public:
             std::streamsize fileSize = std::filesystem::file_size(client.directoryPath + "\\" + fileName);
             send(client.clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
             std::cout << "Sent file size " << fileSize << " to server." << std::endl;
-
             const int chunkSize = 1024;
             char buffer[chunkSize];
             while (!file.eof()) {
@@ -115,7 +114,6 @@ public:
             std::cout << "Sent file " << fileName << " to server." << std::endl;
         }
     }
-
 
     void deleteFileFromServer(const std::string& fileName) {
         sendCommand("DELETE " + fileName);
@@ -146,6 +144,7 @@ private:
 };
 
 int main() {
+    starting();
     std::string command;
     ClientCommands client;
     while (true) {
