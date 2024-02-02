@@ -7,6 +7,7 @@
 #include <string>
 #include <mutex>
 #include <thread>
+#include "Header.h"
 #pragma comment(lib, "ws2_32.lib")
 
 
@@ -74,13 +75,11 @@ public:
         while (true) {
            int client = server.acceptClient();
                 clientThreads.emplace_back([this, client]() { handleClient(client);});
-
         }
         for (auto& thread : clientThreads) {
             thread.join();
         }
     }
-
 
     void handleClient(const int client) {
         std::string clientPath;
@@ -128,7 +127,6 @@ public:
     }
 
 private:
-
     std::vector<std::thread> clientThreads;
     bool loop = true;
     Server server;
@@ -173,7 +171,6 @@ private:
             std::streamsize fileSize;
             recv(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
             std::cout << "Received file size " << fileSize << " from client." << std::endl;
-
             const int chunkSize = 1024;
             char buffer[chunkSize];
             std::streamsize totalBytesReceived = 0;
@@ -211,11 +208,8 @@ private:
 };
 
 int main() {
-    
-        int port = 12345;
-        ServerCommands serverCommands;
-        serverCommands.manageClients();
-        
-   
+    starting();
+    ServerCommands serverCommands;
+    serverCommands.manageClients();
     return 0;
 }

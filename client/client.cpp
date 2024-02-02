@@ -35,6 +35,7 @@ public:
             WSACleanup();
             exit(1);
         }
+
         std::string assetsFolderPath = "assets";
         if (!std::filesystem::exists(assetsFolderPath)) {
             std::filesystem::create_directory(assetsFolderPath);
@@ -81,7 +82,6 @@ public:
         std::streamsize fileSize;
         recv(client.clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
         std::cout << "Received file size " << fileSize << " from server." << std::endl;
-
         const int chunkSize = 1024;
         char buffer[chunkSize];
         std::ofstream file(client.directoryPath + "\\" + fileName, std::ios::binary);
@@ -143,7 +143,6 @@ public:
 
 private:
     Client client;
-
 };
 
 int main() {
