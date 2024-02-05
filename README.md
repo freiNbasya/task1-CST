@@ -8,12 +8,12 @@ LIST command:
 GET command:
 -	Client sends command that consists of both string “GET” + name of desirable file to the server in the same string (size 3 bytes + lenght of file name).
 -	Server receives the string, parses it to separate file name, finds the needed file, calculates it’s size and sends the size to the client.
--	Client receives the size and creates a buffer with the size of the file.
+-	Client receives the size and creates a buffer with the size of the file (8 bytes).
 -	Server creates a buffer with file size and writes file inside. After that server sends it to the client.
 -	Client writes all received data in the buffer and then rewrites buffer in separate file in it’s assets folder.
 
 PUT command:
--	Client sends command that consists of both string “PUT” + name of desirable file to the server in the same string (size 3 bytes + lenght of file name), calculates it’s size and sends the size to the server.
+-	Client sends command that consists of both string “PUT” + name of desirable file to the server in the same string (size 3 bytes + lenght of file name), calculates it’s size and sends the size to the server (8 bytes).
 -	Server receives the string, parses it to separate file name, server receives the size and creates a buffer with the size of the file.
 -	Client creates a buffer with file size and writes file inside. After that server sends it to the server.
 -	Server writes all received data in the buffer and then rewrites buffer in separate file with the initial name of file in it’s assets folder.
