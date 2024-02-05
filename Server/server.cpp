@@ -56,6 +56,15 @@ public:
         }
         return clientSocket;
     }
+
+    int receiveData(int client, char* buffer, int bufferSize) {
+        return recv(client, buffer, bufferSize, 0);
+    }
+
+    int sendData(int client, const char* data, int dataSize) {
+        return send(client, data, dataSize, 0);
+    }
+
     ~Server() {
         closesocket(serverSocket);
         WSACleanup();
@@ -86,7 +95,7 @@ public:
         while (true) {
             char buffer[1024];
             memset(buffer, 0, 1024);
-            int bytesReceived = recv(client, buffer, sizeof(buffer), 0);
+            int bytesReceived = server.receiveData(client, buffer, sizeof(buffer));
             if (bytesReceived > 0) {
                 
                 std::string request = buffer;
@@ -104,7 +113,7 @@ public:
                 else if (request == "LIST") {
                     std::string fileList = LIST(clientPath);
                     std::cout << "Sending file list to client:\n" << fileList << std::endl;
-                    send(client, fileList.c_str(), static_cast<int>(fileList.length()), 0);
+                    server.sendData(client, fileList.c_str(), static_cast<int>(fileList.length()));
                 }
                 else if (request.substr(0, 6) == "DELETE") {
                     std::string fileName = request.substr(7);
@@ -151,14 +160,14 @@ private:
         std::ifstream file(clientPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
             std::streamsize fileSize = std::filesystem::file_size(clientPath + "\\" + fileName);
-            send(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+            server.sendData(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize));
             std::cout << "Sent file size " << fileSize << " to client." << std::endl;
 
             const int chunkSize = 1024;
             char buffer[chunkSize];
             while (!file.eof()) {
                 file.read(buffer, chunkSize);
-                send(client, buffer, static_cast<int>(file.gcount()), 0);
+                server.sendData(client, buffer, static_cast<int>(file.gcount()));
             }
             file.close();
             std::cout << "Sent file " << fileName << " to client." << std::endl;
@@ -169,13 +178,13 @@ private:
         std::ofstream file(clientPath + "\\" + fileName, std::ios::binary);
         if (file.is_open()) {
             std::streamsize fileSize;
-            recv(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+            server.receiveData(client, reinterpret_cast<char*>(&fileSize), sizeof(fileSize));
             std::cout << "Received file size " << fileSize << " from client." << std::endl;
             const int chunkSize = 1024;
             char buffer[chunkSize];
             std::streamsize totalBytesReceived = 0;
             while (totalBytesReceived < fileSize) {
-                int bytesReceived = recv(client, buffer, chunkSize, 0);
+                int bytesReceived = server.receiveData(client, buffer, chunkSize);
                 if (bytesReceived > 0) {
                     file.write(buffer, bytesReceived);
                     totalBytesReceived += bytesReceived;
@@ -190,7 +199,7 @@ private:
         std::string filePath = clientPath + "\\" + fileName;
         if (std::filesystem::remove(filePath)) {
             std::string response = "File " + fileName + " deleted successfully\n";
-            send(client, response.c_str(), static_cast<int>(response.length()), 0);
+            server.sendData(client, response.c_str(), static_cast<int>(response.length()));
             std::cout << "Deleted file " << fileName << " from server." << std::endl;
             
         }
@@ -201,7 +210,7 @@ private:
         std::filesystem::path file(filePath);
         if (std::filesystem::exists(file)) {
             std::string info = "File size: " + std::to_string(std::filesystem::file_size(file)) + " bytes\n";
-            send(client, info.c_str(), static_cast<int>(info.length()), 0);
+            server.sendData(client, info.c_str(), static_cast<int>(info.length()));
             std::cout << "Sent file info for " << fileName << " to client." << std::endl;
         }
     }
